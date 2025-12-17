@@ -42,6 +42,28 @@
       background: rgba(0,0,0,.55);
       backdrop-filter: blur(8px);
       padding: 18px;
+      z-index: 5;
+    }
+    .kittens{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      overflow:hidden;
+      z-index:1;
+    }
+    .kitten{
+      position:absolute;
+      font-size:24px;
+      opacity:0;
+      animation: floaty 5s ease-in-out infinite;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,.35));
+      transform: translate3d(0,0,0);
+    }
+    @keyframes floaty{
+      0%{ opacity:0; transform: translate3d(0,18px,0) scale(.75) rotate(0deg); }
+      24%{ opacity:1; }
+      78%{ opacity:1; }
+      100%{ opacity:0; transform: translate3d(var(--dx,0px), -70px,0) scale(var(--s,1)) rotate(var(--spin,0deg)); }
     }
     .card{
       width:min(560px, 92%);
@@ -94,6 +116,8 @@
     <div class="stage">
       <canvas id="game"></canvas>
 
+      <div class="kittens" id="kittens"></div>
+
       <div class="overlay" id="win">
         <div class="card">
           <div class="bigcat">🐱</div>
@@ -112,6 +136,7 @@
 
   const win = document.getElementById("win");
   const again = document.getElementById("again");
+  const kittens = document.getElementById("kittens");
 
   // 5x5 fijo
   const N = 5;
@@ -121,6 +146,190 @@
   let faceReady = false;
   faceImg.onload = () => faceReady = true;
   faceImg.src = "./face.png";
+
+  let audioCtx;
+
+  function ensureAudio(){
+    if (!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playMeow(){
+    const ctx = ensureAudio();
+    const duration = 0.8;
+    const now = ctx.currentTime;
+
+    const base = 470 + Math.random() * 40; // ligera variación para que no sea robótico
+    const rise = base * 1.16;
+    const fall = base * 0.62;
+
+    const voice = ctx.createOscillator();
+    voice.type = "triangle";
+    voice.frequency.setValueAtTime(base, now);
+    voice.frequency.exponentialRampToValueAtTime(rise, now + 0.12);
+    voice.frequency.exponentialRampToValueAtTime(fall, now + duration);
+
+    const overtone = ctx.createOscillator();
+    overtone.type = "sawtooth";
+    overtone.detune.value = 12;
+    overtone.frequency.setValueAtTime(base * 1.02, now);
+    overtone.frequency.exponentialRampToValueAtTime(rise * 1.01, now + 0.12);
+    overtone.frequency.exponentialRampToValueAtTime(fall * 0.96, now + duration);
+
+    const lfo = ctx.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = 5.6;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 32;
+    lfo.connect(lfoGain).connect(voice.detune);
+    lfo.connect(lfoGain).connect(overtone.detune);
+
+    // ligero temblor inicial para el “miau”
+    const yelp = ctx.createGain();
+    yelp.gain.setValueAtTime(24, now);
+    yelp.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    const yelpOsc = ctx.createOscillator();
+    yelpOsc.type = "sine";
+    yelpOsc.frequency.value = 38;
+    yelpOsc.connect(yelp).connect(voice.detune);
+    yelpOsc.connect(yelp).connect(overtone.detune);
+
+    const bandA = ctx.createBiquadFilter();
+    bandA.type = "bandpass";
+    bandA.Q.value = 9;
+    bandA.frequency.setValueAtTime(720, now);
+    bandA.frequency.linearRampToValueAtTime(860, now + 0.18);
+    bandA.frequency.linearRampToValueAtTime(610, now + duration);
+
+    const bandB = ctx.createBiquadFilter();
+    bandB.type = "bandpass";
+    bandB.Q.value = 4.5;
+    bandB.frequency.setValueAtTime(1280, now);
+    bandB.frequency.linearRampToValueAtTime(1080, now + 0.22);
+    bandB.frequency.linearRampToValueAtTime(880, now + duration);
+
+    const air = ctx.createBiquadFilter();
+    air.type = "highshelf";
+    air.frequency.value = 2500;
+    air.gain.value = 4;
+
+    const saturate = ctx.createWaveShaper();
+    const curve = new Float32Array(256);
+    for (let i = 0; i < curve.length; i++) {
+      const x = (i / (curve.length - 1)) * 2 - 1;
+      curve[i] = Math.tanh(2.6 * x);
+    }
+    saturate.curve = curve;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.64, now + 0.05);
+    gain.gain.setTargetAtTime(0.28, now + 0.26, 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    const breath = ctx.createBufferSource();
+    const breathDur = 0.24;
+    const bBuf = ctx.createBuffer(1, ctx.sampleRate * breathDur, ctx.sampleRate);
+    const bData = bBuf.getChannelData(0);
+    for (let i = 0; i < bData.length; i++) {
+      bData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bData.length, 1.4);
+    }
+    breath.buffer = bBuf;
+    const breathFilter = ctx.createBiquadFilter();
+    breathFilter.type = "bandpass";
+    breathFilter.frequency.value = 680;
+    breathFilter.Q.value = 9;
+    const breathGain = ctx.createGain();
+    breathGain.gain.setValueAtTime(0.0001, now);
+    breathGain.gain.exponentialRampToValueAtTime(0.23, now + 0.04);
+    breathGain.gain.exponentialRampToValueAtTime(0.0001, now + breathDur);
+
+    voice.connect(bandA).connect(saturate);
+    voice.connect(bandB).connect(saturate);
+    overtone.connect(bandA);
+    overtone.connect(bandB);
+    saturate.connect(air).connect(gain);
+    breath.connect(breathFilter).connect(breathGain).connect(ctx.destination);
+    gain.connect(ctx.destination);
+
+    voice.start(now);
+    overtone.start(now);
+    lfo.start(now);
+    yelpOsc.start(now);
+    breath.start(now);
+    voice.stop(now + duration);
+    overtone.stop(now + duration);
+    lfo.stop(now + duration);
+    yelpOsc.stop(now + 0.2);
+    breath.stop(now + breathDur);
+  }
+
+  function playFireworks(){
+    const ctx = ensureAudio();
+    const duration = 0.9;
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<data.length;i++){
+      // white noise with quick decay
+      data[i] = (Math.random()*2-1) * Math.pow(1 - i/data.length, 2.8);
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+    noise.connect(gain).connect(ctx.destination);
+    noise.start();
+
+    // whistle
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    const start = ctx.currentTime;
+    osc.frequency.setValueAtTime(420, start);
+    osc.frequency.exponentialRampToValueAtTime(1200, start + 0.5);
+    const oscGain = ctx.createGain();
+    oscGain.gain.setValueAtTime(0.0001, start);
+    oscGain.gain.exponentialRampToValueAtTime(0.3, start + 0.05);
+    oscGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.6);
+    osc.connect(oscGain).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.6);
+  }
+
+  let kittenTimer = 0;
+
+  function spawnKittens(){
+    if (!kittens) return;
+    kittens.innerHTML = "";
+    const total = 50;
+    const frag = document.createDocumentFragment();
+    for (let i=0;i<total;i++){
+      const k = document.createElement("div");
+      k.className = "kitten";
+      k.textContent = "🐱";
+      k.style.left = `${Math.random()*100}%`;
+      k.style.top = `${Math.random()*100}%`;
+      k.style.fontSize = `${16 + Math.random()*22}px`;
+      k.style.setProperty("--dx", `${(Math.random()*140 - 70).toFixed(1)}px`);
+      k.style.setProperty("--s", (0.7 + Math.random()*0.8).toFixed(2));
+      k.style.setProperty("--spin", `${(Math.random()*60 - 30).toFixed(1)}deg`);
+      k.style.animationDelay = `${(Math.random()*1.5).toFixed(2)}s`;
+      k.style.animationDuration = `${(3.4 + Math.random()*2.6).toFixed(2)}s`;
+      frag.appendChild(k);
+    }
+    kittens.appendChild(frag);
+
+    if (kittenTimer) clearTimeout(kittenTimer);
+    kittenTimer = window.setTimeout(() => {
+      kittens.innerHTML = "";
+      kittenTimer = 0;
+    }, 5000);
+  }
 
   let grid = [];
   let player = { r:0, c:0 };
@@ -295,8 +504,12 @@
     else if (dir==="L" && !cell.w.L) player.c--;
     else return;
 
+    playMeow();
+
     if (player.r===goal.r && player.c===goal.c){
       win.style.display = "grid";
+      playFireworks();
+      spawnKittens();
       cancelAnimationFrame(raf);
     }
   }
@@ -305,6 +518,9 @@
     player = { r:0, c:0 };
     goal = { r:N-1, c:N-1 };
     win.style.display = "none";
+    kittens.innerHTML = "";
+    if (kittenTimer) clearTimeout(kittenTimer);
+    kittenTimer = 0;
     buildEasyMaze();
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(loop);
@@ -361,7 +577,3 @@
 </script>
 </body>
 </html>
-
-  // Laber
-
-
