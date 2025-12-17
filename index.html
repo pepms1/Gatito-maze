@@ -15,23 +15,9 @@
       place-items:center;
       min-height:100vh;
     }
-    .wrap{ width:min(980px,95vw); padding:14px 12px 18px; }
-    header{
-      display:flex; align-items:center; justify-content:space-between;
-      gap:12px; margin-bottom:10px; flex-wrap:wrap;
-    }
-    h1{ font-size:18px; margin:0; font-weight:800; }
-    .sub{ opacity:.85; font-size:13px; margin-top:2px; }
-    .panel{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
-    select,button{
-      background:#141c26; color:#e8eef7;
-      border:1px solid rgba(255,255,255,.12);
-      border-radius:10px; padding:10px 12px;
-      font-weight:700; cursor:pointer; outline:none;
-      user-select:none; -webkit-tap-highlight-color:transparent;
-    }
-    button:active{ transform:translateY(1px); }
-
+    .wrap{ width:min(920px,95vw); padding:14px 12px 18px; }
+    h1{ font-size:18px; margin:0 0 6px; font-weight:900; }
+    .sub{ opacity:.86; font-size:13px; margin:0 0 12px; }
     .stage{
       position:relative;
       border-radius:16px;
@@ -45,90 +31,75 @@
     canvas{
       display:block;
       width:100%;
-      height:70vh;
+      height:74vh;
       min-height:420px;
-      max-height:780px;
-      /* clave para touchscreen: */
-      touch-action:none;
+      max-height:820px;
+      touch-action:none; /* clave para swipe */
     }
-    .hud{
-      position:absolute;
-      left:12px; top:12px;
-      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
-      padding:8px 10px;
-      border-radius:12px;
-      background:rgba(10,14,18,.55);
-      border:1px solid rgba(255,255,255,.10);
-      backdrop-filter:blur(8px);
-      pointer-events:none;
-    }
-    .pill{
-      opacity:.92; font-size:12px;
-      padding:6px 8px; border-radius:10px;
-      border:1px solid rgba(255,255,255,.10);
-      background:rgba(255,255,255,.06);
-    }
-
     .overlay{
       position:absolute; inset:0;
       display:none; place-items:center;
-      background:rgba(0,0,0,.55);
-      backdrop-filter:blur(6px);
-      padding:16px;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(8px);
+      padding: 18px;
     }
     .card{
-      width:min(520px,92%);
-      background:rgba(14,18,24,.92);
-      border:1px solid rgba(255,255,255,.12);
-      border-radius:18px;
-      padding:16px 16px 14px;
-      box-shadow:0 30px 80px rgba(0,0,0,.45);
+      width:min(560px, 92%);
+      background: rgba(14,18,24,.92);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 18px;
+      padding: 18px 16px 16px;
       text-align:center;
+      box-shadow: 0 30px 80px rgba(0,0,0,.45);
     }
-    .card h2{ margin:8px 0 6px; font-size:20px; }
-    .card p{ margin:0 0 12px; opacity:.9; }
-    .row{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    .bigcat{
+      font-size: 110px;
+      line-height: 1;
+      margin: 4px 0 6px;
+      transform: scale(0.6);
+      animation: pop 520ms cubic-bezier(.2,.9,.2,1) forwards;
+    }
+    @keyframes pop{
+      to{ transform: scale(1); }
+    }
+    .msg{
+      font-size: 20px;
+      font-weight: 900;
+      margin: 0 0 10px;
+    }
+    .hint{
+      opacity:.85;
+      margin:0;
+      font-size: 13px;
+    }
+    .tap{
+      margin-top: 12px;
+      display:inline-block;
+      padding:10px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      font-weight: 800;
+      cursor: pointer;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <div>
-        <h1>🧩 Ayuda a Renee (@reneemp) a encontrar el gatito</h1>
-        <div class="sub">Móvil: <b>desliza</b> sobre el laberinto · Teclado: flechas / WASD</div>
-      </div>
-      <div class="panel">
-        <label>
-          <select id="size">
-            <option value="11">Fácil (11×11)</option>
-            <option value="15" selected>Normal (15×15)</option>
-            <option value="21">Difícil (21×21)</option>
-            <option value="31">Locura (31×31)</option>
-          </select>
-        </label>
-        <button id="new">Nuevo laberinto</button>
-        <button id="hint">Pista</button>
-      </div>
-    </header>
+    <h1>🐾 Renee y el Gatito</h1>
+    <p class="sub">Desliza (swipe) sobre el laberinto para mover a Renee. (También sirve flechas/WASD)</p>
 
     <div class="stage">
       <canvas id="game"></canvas>
 
-      <div class="hud">
-        <span class="pill"><b>Movs:</b> <span id="moves">0</span></span>
-        <span class="pill"><b>Tiempo:</b> <span id="time">0.0</span>s</span>
-        <span class="pill"><b>Pista:</b> <span id="hintText">off</span></span>
-      </div>
-
       <div class="overlay" id="win">
         <div class="card">
-          <div style="font-size:42px">🐱🎉</div>
-          <h2>¡Lo lograste!</h2>
-          <p>Renee encontró al gatito. Bien jugado 😼</p>
-          <div class="row">
-            <button id="again">Jugar otra vez</button>
-            <button id="close">Cerrar</button>
-          </div>
+          <div class="bigcat">🐱</div>
+          <div class="msg">Por fin ya tengo nuevo hogar</div>
+          <p class="hint">Toca para jugar otra vez</p>
+          <div class="tap" id="again">Jugar otra vez</div>
         </div>
       </div>
     </div>
@@ -139,33 +110,21 @@
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
 
-  const movesEl = document.getElementById("moves");
-  const timeEl  = document.getElementById("time");
-  const hintEl  = document.getElementById("hintText");
-  const sizeSel = document.getElementById("size");
-
   const win = document.getElementById("win");
-  const btnNew = document.getElementById("new");
-  const btnHint = document.getElementById("hint");
-  const btnAgain = document.getElementById("again");
-  const btnClose = document.getElementById("close");
+  const again = document.getElementById("again");
 
-  // sprite de la cara (en la raíz del repo)
+  // 5x5 fijo
+  const N = 5;
+
+  // Cara (deja face.png en la raíz)
   const faceImg = new Image();
   let faceReady = false;
   faceImg.onload = () => faceReady = true;
   faceImg.src = "./face.png";
 
-  // Maze
-  let N = +sizeSel.value;
   let grid = [];
   let player = { r:0, c:0 };
-  let goal = { r:0, c:0 };
-  let moves = 0;
-  let startTime = 0;
-  let showHint = false;
-  let hintPath = [];
-  let confetti = [];
+  let goal = { r:N-1, c:N-1 };
   let raf = 0;
 
   const shuffle = (arr) => {
@@ -176,329 +135,12 @@
     return arr;
   };
 
-  function makeGrid(n){
-    return Array.from({length:n}, (_,r)=>
-      Array.from({length:n}, (_,c)=>({ r,c, v:false, w:{T:true,R:true,B:true,L:true} }))
+  function makeGrid(){
+    return Array.from({length:N}, (_,r)=>
+      Array.from({length:N}, (_,c)=>({ r,c, v:false, w:{T:true,R:true,B:true,L:true} }))
     );
   }
 
-  function carveMaze(n){
-    grid = makeGrid(n);
-    const stack = [];
-    grid[0][0].v = true;
-    stack.push(grid[0][0]);
+  // Laber
 
-    while(stack.length){
-      const cur = stack[stack.length-1];
-      const {r,c} = cur;
-      const neigh = [];
-      if (r>0   && !grid[r-1][c].v) neigh.push(["T", grid[r-1][c]]);
-      if (c<n-1 && !grid[r][c+1].v) neigh.push(["R", grid[r][c+1]]);
-      if (r<n-1 && !grid[r+1][c].v) neigh.push(["B", grid[r+1][c]]);
-      if (c>0   && !grid[r][c-1].v) neigh.push(["L", grid[r][c-1]]);
-
-      if (!neigh.length){ stack.pop(); continue; }
-      const [dir, nxt] = shuffle(neigh)[0];
-
-      cur.w[dir] = false;
-      if (dir==="T") nxt.w.B = false;
-      if (dir==="R") nxt.w.L = false;
-      if (dir==="B") nxt.w.T = false;
-      if (dir==="L") nxt.w.R = false;
-
-      nxt.v = true;
-      stack.push(nxt);
-    }
-  }
-
-  function bfsPath(from,to){
-    const q = [from];
-    const prev = Array.from({length:N},()=>Array(N).fill(null));
-    const seen = Array.from({length:N},()=>Array(N).fill(false));
-    seen[from.r][from.c] = true;
-
-    const dirs = [
-      ["T",-1,0,"T"], ["R",0,1,"R"], ["B",1,0,"B"], ["L",0,-1,"L"]
-    ];
-
-    while(q.length){
-      const cur = q.shift();
-      if (cur.r===to.r && cur.c===to.c) break;
-      const cell = grid[cur.r][cur.c];
-      for(const [_,dr,dc,wall] of dirs){
-        if (cell.w[wall]) continue;
-        const nr = cur.r+dr, nc = cur.c+dc;
-        if (nr<0||nc<0||nr>=N||nc>=N) continue;
-        if (seen[nr][nc]) continue;
-        seen[nr][nc]=true;
-        prev[nr][nc]=cur;
-        q.push({r:nr,c:nc});
-      }
-    }
-    const path = [];
-    let cur = to;
-    while(cur){ path.push(cur); cur = prev[cur.r][cur.c]; }
-    path.reverse();
-    return path;
-  }
-
-  // Rendering
-  function resize(){
-    const rect = canvas.getBoundingClientRect();
-    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-    canvas.width  = Math.floor(rect.width * dpr);
-    canvas.height = Math.floor(rect.height * dpr);
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-  }
-
-  function drawRoundedImage(img, x, y, size){
-    const r = size/2;
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x+r, y+r, r, 0, Math.PI*2);
-    ctx.clip();
-    ctx.drawImage(img, x, y, size, size);
-    ctx.restore();
-
-    ctx.save();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "rgba(255,255,255,.65)";
-    ctx.beginPath();
-    ctx.arc(x+r, y+r, r, 0, Math.PI*2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function tickConfetti(){
-    if(!confetti.length) return;
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    for(const p of confetti){
-      p.x += p.vx; p.y += p.vy;
-      p.vy *= 0.995;
-      p.a *= 0.992;
-    }
-    confetti = confetti.filter(p => p.y < h+30 && p.a > 0.06);
-  }
-
-  function draw(){
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    ctx.clearRect(0,0,w,h);
-
-    const pad = 18;
-    const availW = w - pad*2;
-    const availH = h - pad*2;
-    const cell = Math.floor(Math.min(availW / N, availH / N));
-    const mazeW = cell * N;
-    const mazeH = cell * N;
-    const ox = Math.floor((w - mazeW)/2);
-    const oy = Math.floor((h - mazeH)/2);
-
-    // hint
-    if(showHint && hintPath.length > 1){
-      ctx.save();
-      ctx.strokeStyle = "rgba(120,220,255,.40)";
-      ctx.lineWidth = Math.max(3, Math.floor(cell*0.18));
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      for(let i=0;i<hintPath.length;i++){
-        const p = hintPath[i];
-        const cx = ox + p.c*cell + cell/2;
-        const cy = oy + p.r*cell + cell/2;
-        if(i===0) ctx.moveTo(cx,cy); else ctx.lineTo(cx,cy);
-      }
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // walls
-    ctx.save();
-    ctx.strokeStyle = "rgba(255,255,255,.85)";
-    ctx.lineWidth = Math.max(2, Math.floor(cell*0.12));
-    ctx.lineCap = "round";
-    for(let r=0;r<N;r++){
-      for(let c=0;c<N;c++){
-        const x = ox + c*cell;
-        const y = oy + r*cell;
-        const cw = grid[r][c].w;
-        if(cw.T){ ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+cell,y); ctx.stroke(); }
-        if(cw.R){ ctx.beginPath(); ctx.moveTo(x+cell,y); ctx.lineTo(x+cell,y+cell); ctx.stroke(); }
-        if(cw.B){ ctx.beginPath(); ctx.moveTo(x,y+cell); ctx.lineTo(x+cell,y+cell); ctx.stroke(); }
-        if(cw.L){ ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+cell); ctx.stroke(); }
-      }
-    }
-    ctx.restore();
-
-    // goal
-    const gx = ox + goal.c*cell;
-    const gy = oy + goal.r*cell;
-    ctx.save();
-    ctx.fillStyle = "rgba(255,210,80,.18)";
-    ctx.fillRect(gx+1, gy+1, cell-2, cell-2);
-    ctx.font = `${Math.floor(cell*0.72)}px system-ui, Apple Color Emoji, Segoe UI Emoji`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("🐱", gx + cell/2, gy + cell/2 + 1);
-    ctx.restore();
-
-    // player
-    const px = ox + player.c*cell + cell*0.12;
-    const py = oy + player.r*cell + cell*0.12;
-    const ps = cell*0.76;
-
-    if(faceReady) drawRoundedImage(faceImg, px, py, ps);
-    else{
-      ctx.save();
-      ctx.fillStyle="rgba(255,255,255,.8)";
-      ctx.beginPath();
-      ctx.arc(px+ps/2, py+ps/2, ps/2, 0, Math.PI*2);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // confetti
-    if(confetti.length){
-      ctx.save();
-      for(const p of confetti){
-        ctx.globalAlpha = p.a;
-        ctx.fillStyle = p.col;
-        ctx.fillRect(p.x, p.y, p.s, p.s*0.65);
-      }
-      ctx.restore();
-    }
-  }
-
-  function celebrate(){
-    confetti = [];
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    const colors = ["#7ef0ff","#ffd37a","#ff7ac8","#a7ff7a","#c7b6ff"];
-    for(let i=0;i<160;i++){
-      confetti.push({
-        x: Math.random()*w,
-        y: -20 - Math.random()*h*0.2,
-        vy: 2 + Math.random()*5,
-        vx: -1.2 + Math.random()*2.4,
-        s: 4 + Math.random()*6,
-        a: 0.9,
-        col: colors[(Math.random()*colors.length)|0],
-      });
-    }
-  }
-
-  // Movement
-  function tryMove(dir){
-    const cell = grid[player.r][player.c];
-    if (dir==="U" && !cell.w.T) player.r--;
-    else if (dir==="R" && !cell.w.R) player.c++;
-    else if (dir==="D" && !cell.w.B) player.r++;
-    else if (dir==="L" && !cell.w.L) player.c--;
-    else return;
-
-    moves++;
-    movesEl.textContent = moves;
-
-    if(showHint) hintPath = bfsPath(player, goal);
-
-    if(player.r===goal.r && player.c===goal.c){
-      celebrate();
-      win.style.display = "grid";
-      cancelAnimationFrame(raf);
-    }
-  }
-
-  // Loop
-  function loop(ts){
-    if(!startTime) startTime = ts;
-    timeEl.textContent = ((ts-startTime)/1000).toFixed(1);
-    tickConfetti();
-    draw();
-    raf = requestAnimationFrame(loop);
-  }
-
-  function resetGame(newMaze=true){
-    N = +sizeSel.value;
-    if(newMaze) carveMaze(N);
-    player = { r:0, c:0 };
-    goal = { r:N-1, c:N-1 };
-    moves = 0;
-    movesEl.textContent = "0";
-    startTime = 0;
-    confetti = [];
-    win.style.display = "none";
-    hintPath = showHint ? bfsPath(player, goal) : [];
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(loop);
-  }
-
-  // Touch: swipe on canvas
-  let sx=0, sy=0, active=false;
-  const SWIPE_MIN = 24;      // px
-  const SWIPE_RATIO = 1.2;   // dominance threshold
-
-  canvas.addEventListener("pointerdown", (e) => {
-    active = true;
-    sx = e.clientX; sy = e.clientY;
-    canvas.setPointerCapture(e.pointerId);
-  });
-
-  canvas.addEventListener("pointerup", (e) => {
-    if(!active) return;
-    active = false;
-    const dx = e.clientX - sx;
-    const dy = e.clientY - sy;
-
-    const adx = Math.abs(dx), ady = Math.abs(dy);
-    if (Math.max(adx, ady) < SWIPE_MIN) return; // tap = nada
-
-    if (adx > ady * SWIPE_RATIO) {
-      tryMove(dx > 0 ? "R" : "L");
-    } else if (ady > adx * SWIPE_RATIO) {
-      tryMove(dy > 0 ? "D" : "U");
-    } else {
-      // diagonal: toma el dominante
-      if (adx >= ady) tryMove(dx > 0 ? "R" : "L");
-      else tryMove(dy > 0 ? "D" : "U");
-    }
-  });
-
-  canvas.addEventListener("pointercancel", () => { active=false; });
-
-  // Keyboard
-  window.addEventListener("keydown", (e) => {
-    const k = e.key.toLowerCase();
-    if (["arrowup","arrowdown","arrowleft","arrowright","w","a","s","d"].includes(k)) e.preventDefault();
-    if (k==="arrowup" || k==="w") tryMove("U");
-    if (k==="arrowright" || k==="d") tryMove("R");
-    if (k==="arrowdown" || k==="s") tryMove("D");
-    if (k==="arrowleft" || k==="a") tryMove("L");
-  }, { passive:false });
-
-  // UI
-  btnNew.addEventListener("click", () => resetGame(true));
-  sizeSel.addEventListener("change", () => resetGame(true));
-
-  btnHint.addEventListener("click", () => {
-    showHint = !showHint;
-    hintEl.textContent = showHint ? "on" : "off";
-    hintPath = showHint ? bfsPath(player, goal) : [];
-  });
-
-  btnAgain.addEventListener("click", () => resetGame(true));
-  btnClose.addEventListener("click", () => {
-    win.style.display = "none";
-    resetGame(false);
-  });
-
-  const ro = new ResizeObserver(() => { resize(); draw(); });
-  ro.observe(canvas);
-  window.addEventListener("orientationchange", () => setTimeout(() => { resize(); draw(); }, 150));
-
-  // start
-  resize();
-  carveMaze(N);
-  hintEl.textContent = "off";
-  resetGame(false);
-})();
-</script>
-</body>
-</html>
 
