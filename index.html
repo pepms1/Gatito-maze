@@ -141,6 +141,227 @@
     );
   }
 
+  // Laberinto "fácil": perfect maze + tiramos paredes extra para crear más caminos
+  function buildEasyMaze(){
+    grid = makeGrid();
+
+    const stack = [];
+    grid[0][0].v = true;
+    stack.push(grid[0][0]);
+
+    while(stack.length){
+      const cur = stack[stack.length-1];
+      const {r,c} = cur;
+      const neigh = [];
+
+      if (r>0   && !grid[r-1][c].v) neigh.push(["T", grid[r-1][c]]);
+      if (c<N-1 && !grid[r][c+1].v) neigh.push(["R", grid[r][c+1]]);
+      if (r<N-1 && !grid[r+1][c].v) neigh.push(["B", grid[r+1][c]]);
+      if (c>0   && !grid[r][c-1].v) neigh.push(["L", grid[r][c-1]]);
+
+      if (!neigh.length){ stack.pop(); continue; }
+
+      const [dir, nxt] = shuffle(neigh)[0];
+      cur.w[dir] = false;
+      if (dir==="T") nxt.w.B = false;
+      if (dir==="R") nxt.w.L = false;
+      if (dir==="B") nxt.w.T = false;
+      if (dir==="L") nxt.w.R = false;
+
+      nxt.v = true;
+      stack.push(nxt);
+    }
+
+    // Extra-easy: derriba paredes adicionales aleatorias (más loops = más fácil)
+    const candidates = [];
+    for (let r=0;r<N;r++){
+      for (let c=0;c<N;c++){
+        if (r < N-1) candidates.push({r,c,dir:"B"});
+        if (c < N-1) candidates.push({r,c,dir:"R"});
+      }
+    }
+    shuffle(candidates);
+
+    // rompe ~30% de paredes posibles (ajuste “fácil”)
+    const toBreak = Math.floor(candidates.length * 0.30);
+    for (let i=0;i<toBreak;i++){
+      const {r,c,dir} = candidates[i];
+      const cell = grid[r][c];
+      if (dir==="R"){
+        if (!cell.w.R) continue;
+        cell.w.R = false;
+        grid[r][c+1].w.L = false;
+      } else { // B
+        if (!cell.w.B) continue;
+        cell.w.B = false;
+        grid[r+1][c].w.T = false;
+      }
+    }
+  }
+
+  function resize(){
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width  = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function drawRoundedImage(img, x, y, size){
+    const r = size/2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x+r, y+r, r, 0, Math.PI*2);
+    ctx.clip();
+    ctx.drawImage(img, x, y, size, size);
+    ctx.restore();
+
+    ctx.save();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(255,255,255,.65)";
+    ctx.beginPath();
+    ctx.arc(x+r, y+r, r, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function draw(){
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    ctx.clearRect(0,0,w,h);
+
+    const pad = 20;
+    const cell = Math.floor(Math.min((w-pad*2)/N, (h-pad*2)/N));
+    const mazeW = cell*N, mazeH = cell*N;
+    const ox = Math.floor((w-mazeW)/2);
+    const oy = Math.floor((h-mazeH)/2);
+
+    // walls
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,.88)";
+    ctx.lineWidth = Math.max(3, Math.floor(cell*0.13));
+    ctx.lineCap = "round";
+
+    for(let r=0;r<N;r++){
+      for(let c=0;c<N;c++){
+        const x = ox + c*cell;
+        const y = oy + r*cell;
+        const cw = grid[r][c].w;
+        if(cw.T){ ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+cell,y); ctx.stroke(); }
+        if(cw.R){ ctx.beginPath(); ctx.moveTo(x+cell,y); ctx.lineTo(x+cell,y+cell); ctx.stroke(); }
+        if(cw.B){ ctx.beginPath(); ctx.moveTo(x,y+cell); ctx.lineTo(x+cell,y+cell); ctx.stroke(); }
+        if(cw.L){ ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+cell); ctx.stroke(); }
+      }
+    }
+    ctx.restore();
+
+    // goal tile + big cat icon (pero dentro)
+    const gx = ox + goal.c*cell;
+    const gy = oy + goal.r*cell;
+    ctx.save();
+    ctx.fillStyle = "rgba(255,210,80,.18)";
+    ctx.fillRect(gx+2, gy+2, cell-4, cell-4);
+    ctx.font = `${Math.floor(cell*0.78)}px system-ui, Apple Color Emoji, Segoe UI Emoji`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("🐱", gx + cell/2, gy + cell/2 + 1);
+    ctx.restore();
+
+    // player face
+    const px = ox + player.c*cell + cell*0.10;
+    const py = oy + player.r*cell + cell*0.10;
+    const ps = cell*0.80;
+
+    if(faceReady) drawRoundedImage(faceImg, px, py, ps);
+    else{
+      ctx.save();
+      ctx.fillStyle="rgba(255,255,255,.8)";
+      ctx.beginPath();
+      ctx.arc(px+ps/2, py+ps/2, ps/2, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function loop(){
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function tryMove(dir){
+    const cell = grid[player.r][player.c];
+    if (dir==="U" && !cell.w.T) player.r--;
+    else if (dir==="R" && !cell.w.R) player.c++;
+    else if (dir==="D" && !cell.w.B) player.r++;
+    else if (dir==="L" && !cell.w.L) player.c--;
+    else return;
+
+    if (player.r===goal.r && player.c===goal.c){
+      win.style.display = "grid";
+      cancelAnimationFrame(raf);
+    }
+  }
+
+  function reset(){
+    player = { r:0, c:0 };
+    goal = { r:N-1, c:N-1 };
+    win.style.display = "none";
+    buildEasyMaze();
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(loop);
+  }
+
+  // Touch swipe
+  let sx=0, sy=0, active=false;
+  const SWIPE_MIN = 18;
+  const SWIPE_RATIO = 1.1;
+
+  canvas.addEventListener("pointerdown", (e) => {
+    active = true;
+    sx = e.clientX; sy = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener("pointerup", (e) => {
+    if(!active) return;
+    active = false;
+    const dx = e.clientX - sx;
+    const dy = e.clientY - sy;
+
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    if (Math.max(adx, ady) < SWIPE_MIN) return;
+
+    if (adx > ady * SWIPE_RATIO) tryMove(dx > 0 ? "R" : "L");
+    else if (ady > adx * SWIPE_RATIO) tryMove(dy > 0 ? "D" : "U");
+    else (adx >= ady) ? tryMove(dx > 0 ? "R" : "L") : tryMove(dy > 0 ? "D" : "U");
+  });
+
+  canvas.addEventListener("pointercancel", () => { active=false; });
+
+  // Keyboard (por si abren en compu)
+  window.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    if (["arrowup","arrowdown","arrowleft","arrowright","w","a","s","d"].includes(k)) e.preventDefault();
+    if (k==="arrowup" || k==="w") tryMove("U");
+    if (k==="arrowright" || k==="d") tryMove("R");
+    if (k==="arrowdown" || k==="s") tryMove("D");
+    if (k==="arrowleft" || k==="a") tryMove("L");
+  }, { passive:false });
+
+  // Win overlay: tocar para reiniciar
+  win.addEventListener("click", reset);
+  again.addEventListener("click", reset);
+
+  const ro = new ResizeObserver(() => { resize(); draw(); });
+  ro.observe(canvas);
+
+  // Start
+  resize();
+  reset();
+})();
+</script>
+</body>
+</html>
+
   // Laber
 
 
