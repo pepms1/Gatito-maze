@@ -122,6 +122,70 @@
   faceImg.onload = () => faceReady = true;
   faceImg.src = "./face.png";
 
+  let audioCtx;
+
+  function ensureAudio(){
+    if (!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playMeow(){
+    const ctx = ensureAudio();
+    const duration = 0.35;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(620, now);
+    osc.frequency.exponentialRampToValueAtTime(320, now + duration);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.32, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + duration);
+  }
+
+  function playFireworks(){
+    const ctx = ensureAudio();
+    const duration = 0.9;
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<data.length;i++){
+      // white noise with quick decay
+      data[i] = (Math.random()*2-1) * Math.pow(1 - i/data.length, 2.8);
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+    noise.connect(gain).connect(ctx.destination);
+    noise.start();
+
+    // whistle
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    const start = ctx.currentTime;
+    osc.frequency.setValueAtTime(420, start);
+    osc.frequency.exponentialRampToValueAtTime(1200, start + 0.5);
+    const oscGain = ctx.createGain();
+    oscGain.gain.setValueAtTime(0.0001, start);
+    oscGain.gain.exponentialRampToValueAtTime(0.3, start + 0.05);
+    oscGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.6);
+    osc.connect(oscGain).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.6);
+  }
+
   let grid = [];
   let player = { r:0, c:0 };
   let goal = { r:N-1, c:N-1 };
@@ -295,8 +359,11 @@
     else if (dir==="L" && !cell.w.L) player.c--;
     else return;
 
+    playMeow();
+
     if (player.r===goal.r && player.c===goal.c){
       win.style.display = "grid";
+      playFireworks();
       cancelAnimationFrame(raf);
     }
   }
@@ -361,7 +428,3 @@
 </script>
 </body>
 </html>
-
-  // Laber
-
-
