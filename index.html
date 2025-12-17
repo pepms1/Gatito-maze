@@ -45,7 +45,7 @@
       z-index: 5;
     }
     .kittens{
-      position:absolute;
+      position:fixed;
       inset:0;
       pointer-events:none;
       overflow:hidden;
@@ -301,10 +301,12 @@
     osc.stop(start + 0.6);
   }
 
+  let kittenTimer = 0;
+
   function spawnKittens(){
     if (!kittens) return;
     kittens.innerHTML = "";
-    const total = 150;
+    const total = 50;
     const frag = document.createDocumentFragment();
     for (let i=0;i<total;i++){
       const k = document.createElement("div");
@@ -321,6 +323,12 @@
       frag.appendChild(k);
     }
     kittens.appendChild(frag);
+
+    if (kittenTimer) clearTimeout(kittenTimer);
+    kittenTimer = window.setTimeout(() => {
+      kittens.innerHTML = "";
+      kittenTimer = 0;
+    }, 5000);
   }
 
   let grid = [];
@@ -511,6 +519,8 @@
     goal = { r:N-1, c:N-1 };
     win.style.display = "none";
     kittens.innerHTML = "";
+    if (kittenTimer) clearTimeout(kittenTimer);
+    kittenTimer = 0;
     buildEasyMaze();
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(loop);
