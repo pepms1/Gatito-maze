@@ -134,22 +134,112 @@
 
   function playMeow(){
     const ctx = ensureAudio();
-    const duration = 0.35;
+    const duration = 0.8;
     const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
+
+    const base = 470 + Math.random() * 40; // ligera variación para que no sea robótico
+    const rise = base * 1.16;
+    const fall = base * 0.62;
+
+    const voice = ctx.createOscillator();
+    voice.type = "triangle";
+    voice.frequency.setValueAtTime(base, now);
+    voice.frequency.exponentialRampToValueAtTime(rise, now + 0.12);
+    voice.frequency.exponentialRampToValueAtTime(fall, now + duration);
+
+    const overtone = ctx.createOscillator();
+    overtone.type = "sawtooth";
+    overtone.detune.value = 12;
+    overtone.frequency.setValueAtTime(base * 1.02, now);
+    overtone.frequency.exponentialRampToValueAtTime(rise * 1.01, now + 0.12);
+    overtone.frequency.exponentialRampToValueAtTime(fall * 0.96, now + duration);
+
+    const lfo = ctx.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = 5.6;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 32;
+    lfo.connect(lfoGain).connect(voice.detune);
+    lfo.connect(lfoGain).connect(overtone.detune);
+
+    // ligero temblor inicial para el “miau”
+    const yelp = ctx.createGain();
+    yelp.gain.setValueAtTime(24, now);
+    yelp.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    const yelpOsc = ctx.createOscillator();
+    yelpOsc.type = "sine";
+    yelpOsc.frequency.value = 38;
+    yelpOsc.connect(yelp).connect(voice.detune);
+    yelpOsc.connect(yelp).connect(overtone.detune);
+
+    const bandA = ctx.createBiquadFilter();
+    bandA.type = "bandpass";
+    bandA.Q.value = 9;
+    bandA.frequency.setValueAtTime(720, now);
+    bandA.frequency.linearRampToValueAtTime(860, now + 0.18);
+    bandA.frequency.linearRampToValueAtTime(610, now + duration);
+
+    const bandB = ctx.createBiquadFilter();
+    bandB.type = "bandpass";
+    bandB.Q.value = 4.5;
+    bandB.frequency.setValueAtTime(1280, now);
+    bandB.frequency.linearRampToValueAtTime(1080, now + 0.22);
+    bandB.frequency.linearRampToValueAtTime(880, now + duration);
+
+    const air = ctx.createBiquadFilter();
+    air.type = "highshelf";
+    air.frequency.value = 2500;
+    air.gain.value = 4;
+
+    const saturate = ctx.createWaveShaper();
+    const curve = new Float32Array(256);
+    for (let i = 0; i < curve.length; i++) {
+      const x = (i / (curve.length - 1)) * 2 - 1;
+      curve[i] = Math.tanh(2.6 * x);
+    }
+    saturate.curve = curve;
+
     const gain = ctx.createGain();
-
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(620, now);
-    osc.frequency.exponentialRampToValueAtTime(320, now + duration);
-
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.32, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.64, now + 0.05);
+    gain.gain.setTargetAtTime(0.28, now + 0.26, 0.06);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + duration);
+    const breath = ctx.createBufferSource();
+    const breathDur = 0.24;
+    const bBuf = ctx.createBuffer(1, ctx.sampleRate * breathDur, ctx.sampleRate);
+    const bData = bBuf.getChannelData(0);
+    for (let i = 0; i < bData.length; i++) {
+      bData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bData.length, 1.4);
+    }
+    breath.buffer = bBuf;
+    const breathFilter = ctx.createBiquadFilter();
+    breathFilter.type = "bandpass";
+    breathFilter.frequency.value = 680;
+    breathFilter.Q.value = 9;
+    const breathGain = ctx.createGain();
+    breathGain.gain.setValueAtTime(0.0001, now);
+    breathGain.gain.exponentialRampToValueAtTime(0.23, now + 0.04);
+    breathGain.gain.exponentialRampToValueAtTime(0.0001, now + breathDur);
+
+    voice.connect(bandA).connect(saturate);
+    voice.connect(bandB).connect(saturate);
+    overtone.connect(bandA);
+    overtone.connect(bandB);
+    saturate.connect(air).connect(gain);
+    breath.connect(breathFilter).connect(breathGain).connect(ctx.destination);
+    gain.connect(ctx.destination);
+
+    voice.start(now);
+    overtone.start(now);
+    lfo.start(now);
+    yelpOsc.start(now);
+    breath.start(now);
+    voice.stop(now + duration);
+    overtone.stop(now + duration);
+    lfo.stop(now + duration);
+    yelpOsc.stop(now + 0.2);
+    breath.stop(now + breathDur);
   }
 
   function playFireworks(){
